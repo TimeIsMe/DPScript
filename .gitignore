@@ -1,0 +1,10 @@
+# emacs
+*.*~
+*.*#
+.#*
+
+# gtags
+GPATH
+GRTAGS
+GSYMS
+GTAGS
