@@ -12,6 +12,7 @@ import os
 import re
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
 
 pattern = r'^([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)(.{2})([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)$'
 
@@ -74,9 +75,12 @@ class dataset:
         self._pces = self._procdata[..., 2]
 
     def _get_vol_cur_0(self):
-        cur_abs = np.absolute(self._cur)
-        index = np.argmin(cur_abs)
-        self._vol_cur_0 = self._vol[index]
+        f = interp1d(self._cur, self._vol)
+        self._vol_cur_0 = f(0.0)
+        pass
+        # cur_abs = np.absolute(self._cur)
+        # index = np.argmin(cur_abs)
+        # self._vol_cur_0 = self._vol[index]
 
     def _get_cur_vol_0(self):
         vol_abs = np.absolute(self._vol)
@@ -91,8 +95,9 @@ class dataset:
         self._get_cur_vol_0()
         self._get_vol_cur_0()
         tmp = self._vol_cur_0 * self._cur_vol_0
-        power = np.divide(self._pces, tmp)
-        self._ff = abs(np.amin(power))
+        m = np.amin(self._pces)
+        m = m/tmp
+        self._ff = abs(m)*100.0
 
     def _get_pce(self):
         self._pce = abs(np.amin(self._pces))
@@ -106,7 +111,7 @@ class dataset:
 
     def get_result(self):
         vol = self._vol_cur_0
-        cur = self._max_cur
+        cur = abs(self._cur_vol_0)
         pce = self._pce
         ff = self._ff
         return vol, cur, pce, ff
@@ -165,7 +170,8 @@ def main():
     try:
         r_fp = open(res_file, 'x')
         r_fp.write('-' * 60 + '\r\n')
-        r_fp.write('FileName\tJSC(mA/cm2)\tVOC(V)\tFF(%)\tPCE(%)\r\n')
+        tmp = "%-12s\t%-12s\t%-12s\t%-12s\t%-12s\n"%("FileName", "JSC(mA/cm2)", "VOC(V)", "FF(%)", "PCE(%)\r\n")
+        r_fp.write(tmp)
         r_fp.write('-' * 60 + '\r\n')
     except IOError:
         print("can't open the result file:{0}".format(res_file))
@@ -182,6 +188,7 @@ def main():
             continue
         # this file should be drawn.
         r = r[0]
+        name = r[1:]
         print("{0}".format(r))
         out_data_file_name = out_data_dir + r[1:]
         print("{0}".format(out_data_file_name))
@@ -191,13 +198,11 @@ def main():
         vol, cur, pce, ff = ds.get_result()
 
         # record the result into result.txt
-        result_line = '{0}\t{1}\t\t{2}\t{3}\t{4}\r\n'.format(data_file_name,
-                                                       str(format(cur, '.3f')), str(format(vol, '.3f')),
-                                                       str(format(ff, '.3f')), str(format(pce, '.3f')))
+        result_line = "%-12s\t%-12s\t%-12s\t%-12s\t%-12s\n"%(name, str(format(cur, '.2f')), str(format(vol, '.3f')),
+                                                       str(format(ff, '.1f')), str(format(pce, '.2f')))
         r_fp.write(result_line)
 
         # draw
-        name = r[1:]
         tmp = name.split('.')
         group_index = int(tmp[0])
         result_list = ds.out_list
